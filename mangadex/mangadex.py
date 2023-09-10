@@ -1,5 +1,5 @@
 """
-Metron.cloud information source
+MangaDex information source
 """
 # Copyright comictagger team
 #
@@ -581,8 +581,7 @@ class MangaDexTalker(ComicTalker):
             # Publisher can only be gleaned from chapter information
             pub_name = ""
 
-            # TODO Remove or 0 once serieswindow is fixed if year is None
-            start_year = utils.xlate_int(record["attributes"].get("year")) or 0
+            start_year = utils.xlate_int(record["attributes"].get("year"))
 
             # Tags holds genre and others which we'll ignore except format
             genres = []
