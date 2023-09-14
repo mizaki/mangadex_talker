@@ -712,13 +712,8 @@ class MangaDexTalker(ComicTalker):
         cached_issues_result = cvc.get_issue_info(issue_id, self.id)
 
         if cached_issues_result and cached_issues_result[1]:
-            cache_issue: MangaDexChapter = json.loads(cached_issues_result[0].data)
-            # Find manga series id
-            for rel in cache_issue["relationships"]:
-                if rel["type"] == "manga":
-                    series_id = rel["id"]
-
-            return self._map_comic_issue_to_metadata(cache_issue, self._fetch_series(series_id))
+            return self._map_comic_issue_to_metadata(
+                json.loads(cached_issues_result[0].data), self._fetch_series(cached_issues_result[0].series_id))
 
         # scanlation group wanted to try and glean publisher if "official" is True
         params = {"includes[]": ["scanlation_group"]}
