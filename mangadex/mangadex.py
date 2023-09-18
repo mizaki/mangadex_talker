@@ -38,7 +38,7 @@ from comictalker.comictalker import ComicTalker, TalkerDataError, TalkerNetworkE
 from pyrate_limiter import Duration, Limiter, RequestRate
 from typing_extensions import TypedDict
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"comictalker.{__name__}")
 
 
 class MangaDexTagAttr(TypedDict):
@@ -184,6 +184,12 @@ class MangaDexTalker(ComicTalker):
     website: str = "https://mangadex.org"
     logo_url: str = "https://mangadex.org/img/brand/mangadex-logo.svg"
     attribution: str = f"Metadata provided by <a href='{website}'>{name}</a>"
+    about: str = (
+        f"<a href='{website}'>{name}</a> was created in January 2018 by the former admin and sole developer, "
+        f"Hologfx. Since then, MangaDex has been steadily growing, approaching 14 million unique visitors "
+        f"per month. The site is currently ran by 21+ unpaid volunteers."
+        f"<p>NOTE: Some major series will be missing issue information.</p>"
+    )
 
     def __init__(self, version: str, cache_folder: pathlib.Path):
         super().__init__(version, cache_folder)
@@ -713,7 +719,8 @@ class MangaDexTalker(ComicTalker):
 
         if cached_issues_result and cached_issues_result[1]:
             return self._map_comic_issue_to_metadata(
-                json.loads(cached_issues_result[0].data), self._fetch_series(cached_issues_result[0].series_id))
+                json.loads(cached_issues_result[0].data), self._fetch_series(cached_issues_result[0].series_id)
+            )
 
         # scanlation group wanted to try and glean publisher if "official" is True
         params = {"includes[]": ["scanlation_group"]}
