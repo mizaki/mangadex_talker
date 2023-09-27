@@ -589,19 +589,10 @@ class MangaDexTalker(ComicTalker):
 
             start_year = utils.xlate_int(record["attributes"].get("year"))
 
-            # Tags holds genre and others which we'll ignore except format
-            genres = []
             format_type = ""
             for mdex_tags in record["attributes"]["tags"]:
-                if mdex_tags["attributes"]["group"] == "genre":
-                    genres.append(mdex_tags["attributes"]["name"]["en"])
                 if mdex_tags["attributes"]["group"] == "format":
                     format_type = mdex_tags["attributes"]["name"]["en"]
-                    if mdex_tags["attributes"]["name"]["en"] == "Doujinshi":
-                        genres.append("Doujinshi")
-
-            # Add maturity rating to genre
-            genres.append(record["attributes"]["contentRating"].capitalize())
 
             # TODO Use local language or setting etc.?
             desc = record["attributes"]["description"].get("en", "")
@@ -624,7 +615,6 @@ class MangaDexTalker(ComicTalker):
                     name=title,
                     publisher=pub_name,
                     start_year=start_year,
-                    genres=genres,
                     format=format_type,
                 )
             )
