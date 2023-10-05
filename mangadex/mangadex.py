@@ -576,13 +576,14 @@ class MangaDexTalker(ComicTalker):
     def _format_search_results(self, search_results: list[MangaDexSeries]) -> list[ComicSeries]:
         formatted_results = []
         for record in search_results:
-            alias_list = []
+            alias_list = set()
             for alias in record["attributes"]["altTitles"]:
                 for iso, title in alias.items():
-                    alias_list.append(title)
+                    alias_list.add(title)
 
             # TODO Use language preference?
-            title = record["attributes"]["title"]["en"]
+            # "en" is not guaranteed
+            title = next(iter(record["attributes"]["title"].values()))
 
             # Publisher can only be gleaned from chapter information
             pub_name = ""
@@ -782,7 +783,6 @@ class MangaDexTalker(ComicTalker):
             tag_origin=TagOrigin(self.id, self.name),
             issue_id=utils.xlate(issue["id"]),
             series_id=utils.xlate(series["id"]),
-            title_aliases=[],
             issue=utils.xlate(IssueString(issue["attributes"]["chapter"]).as_string()),
         )
         # TODO Language support?
@@ -801,7 +801,7 @@ class MangaDexTalker(ComicTalker):
         # TODO Select language?
         # TODO Option to copy series desc or not?
         if series["attributes"].get("description"):
-            md.description = series["attributes"]["description"]["en"]
+            md.description = next(iter(series["attributes"]["description"].values()), None)
 
         if series["attributes"].get("tags"):
             # Tags holds genre, theme, content warning and format
@@ -822,14 +822,14 @@ class MangaDexTalker(ComicTalker):
                 if mdex_tags["attributes"]["group"] in ["theme", "content"]:
                     tags.append(mdex_tags["attributes"]["name"]["en"])
 
-            md.genres = genres
-            md.tags = tags
+            md.genres = set(genres)
+            md.tags = set(tags)
             md.format = format_type
 
         md.title = utils.xlate(issue["attributes"]["title"])
 
-        for alt_title in series["attributes"].get("altTitles", []):
-            md.series_aliases.extend(alt_title.values())
+        for alt_title in series["attributes"].get("altTitles", set()):
+            md.series_aliases.add(next(iter(alt_title.values())))
 
         md.language = utils.xlate(issue["attributes"].get("translatedLanguage"))
 
