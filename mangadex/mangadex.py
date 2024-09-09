@@ -262,7 +262,7 @@ class MangaDexTalker(ComicTalker):
         return settings
 
     def check_status(self, settings: dict[str, Any]) -> tuple[str, bool]:
-        url = talker_utils.fix_url(settings[f"--{self.id}-url"])
+        url = talker_utils.fix_url(settings[f"{self.id}_url"])
         if not url:
             url = self.default_api_url
         try:
