@@ -22,7 +22,8 @@ import json
 import logging
 import pathlib
 import time
-from typing import Any, Callable, Generic, TypedDict, TypeVar
+from typing import Any, Callable, Generic, TypeVar
+from typing_extensions import TypedDict
 from urllib.parse import urljoin
 
 import comictalker.talker_utils as talker_utils
