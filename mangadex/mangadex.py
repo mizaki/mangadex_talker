@@ -180,6 +180,7 @@ limiter = Limiter(RequestRate(5, Duration.SECOND))
 class MangaDexTalker(ComicTalker):
     name: str = "MangaDex"
     id: str = "mangadex"
+    comictagger_min_ver: str = "1.6.0a13"
     website: str = "https://mangadex.org"
     logo_url: str = "https://mangadex.org/img/brand/mangadex-logo.svg"
     attribution: str = f"Metadata provided by <a href='{website}'>{name}</a>"
