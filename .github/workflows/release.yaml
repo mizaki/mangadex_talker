@@ -37,7 +37,9 @@ jobs:
       - name: Build and install wheel
         run: |
           tox run -m build
-          python -m pip install dist/*.whl
+          python -m pip install dist/*.whl -t build
+          cd build
+          zip -r ../../dist/${{ github.event.repository.name }}.zip *
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -46,3 +48,4 @@ jobs:
           draft: false
           files: |
             dist/*.whl
+            dist/*.zip
