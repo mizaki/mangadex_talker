@@ -42,4 +42,4 @@ jobs:
         with:
           draft: false
           files: |
-            dist/plugin/*.zip
+            ./dist/plugin/*.zip
