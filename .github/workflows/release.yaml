@@ -39,7 +39,7 @@ jobs:
           tox run -m build
           python -m pip install dist/*.whl -t build
           cd build
-          zip -x "*/__pycache__/*" -r ../dist/${{ github.event.repository.name }}.zip *
+          zip -x "*/__pycache__/*" -r ../dist/${{ github.event.repository.name }}_${{ github.ref_name }}.zip *
 
       - name: Release
         uses: softprops/action-gh-release@v2
