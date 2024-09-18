@@ -1,10 +1,9 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches:
-      - '**'
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+*"
 
 jobs:
   build-and-publish:
@@ -32,15 +31,20 @@ jobs:
       - name: Build and install wheel
         run: |
           tox run -m build
-          python -m pip install dist/*.whl -t build/plugin
-          cd build/plugin
-          mkdir ../../dist/plugin
-          zip -r ../../dist/plugin/${{ github.event.repository.name }}.zip *
+          python -m pip install dist/*.whl
+
+      - name: Get release name
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/* # github is dumb
+          echo "release_name=$(git tag -l --format "%(refname:strip=2): %(contents:lines=1)" ${{ github.ref_name }})" >> $GITHUB_ENV
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          name: "${{ env.release_name }}"
           draft: false
           files: |
             dist/*.whl
