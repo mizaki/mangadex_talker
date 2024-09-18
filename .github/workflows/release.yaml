@@ -34,7 +34,8 @@ jobs:
           tox run -m build
           python -m pip install dist/*.whl -t build/plugin
           cd build/plugin
-          zip -r dist/plugin/${{ github.event.repository.name }}.zip *
+          mkdir ../../dist/plugin
+          zip -r ../../dist/plugin/${{ github.event.repository.name }}.zip *
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -42,4 +43,4 @@ jobs:
         with:
           draft: false
           files: |
-            ./dist/plugin/*.zip
+            dist/plugin/*.zip
