@@ -23,9 +23,11 @@ import logging
 import pathlib
 import time
 from typing import Any, Callable, Generic, TypeVar
+from typing_extensions import TypedDict
 from urllib.parse import urljoin
 
 import comictalker.talker_utils as talker_utils
+import requests
 import settngs
 from comicapi import utils
 from comicapi.genericmetadata import ComicSeries, GenericMetadata, MetadataOrigin
@@ -33,14 +35,9 @@ from comicapi.issuestring import IssueString
 from comictalker.comiccacher import ComicCacher
 from comictalker.comiccacher import Issue as CCIssue
 from comictalker.comiccacher import Series as CCSeries
-from comictalker.comictalker import ComicTalker, RLCallBack, TalkerDataError, TalkerNetworkError
-from comictalker.vendor.pyrate_limiter import Duration, Limiter, RequestRate
-from typing_extensions import TypedDict
+from comictalker.comictalker import ComicTalker, TalkerDataError, TalkerNetworkError
+from pyrate_limiter import Duration, Limiter, RequestRate
 
-try:
-    import niquests as requests
-except ImportError:
-    import requests
 logger = logging.getLogger(f"comictalker.{__name__}")
 
 
@@ -288,8 +285,6 @@ class MangaDexTalker(ComicTalker):
         refresh_cache: bool = False,
         literal: bool = False,
         series_match_thresh: int = 90,
-        *,
-        on_rate_limit: RLCallBack | None = None,
     ) -> list[ComicSeries]:
         search_series_name = utils.sanitize_title(series_name, literal)
         logger.info(f"{self.name} searching: {search_series_name}")
@@ -323,9 +318,7 @@ class MangaDexTalker(ComicTalker):
         }
 
         mdex_response: MangaDexResponse[list[MangaDexSeries]] = self._get_content(
-            urljoin(self.api_url, "manga"),
-            params,
-            on_rate_limit=on_rate_limit,
+            urljoin(self.api_url, "manga"), params
         )
 
         search_results: list[MangaDexSeries] = []
@@ -364,7 +357,7 @@ class MangaDexTalker(ComicTalker):
             offset += 100
 
             params["offset"] = offset
-            mdex_response = self._get_content(urljoin(self.api_url, "manga"), params, on_rate_limit=on_rate_limit)
+            mdex_response = self._get_content(urljoin(self.api_url, "manga"), params)
 
             search_results.extend(mdex_response["data"])
             current_result_count += len(mdex_response["data"])
@@ -392,30 +385,22 @@ class MangaDexTalker(ComicTalker):
         return formatted_search_results
 
     def fetch_comic_data(
-        self,
-        issue_id: str | None = None,
-        series_id: str | None = None,
-        issue_number: str = "",
-        on_rate_limit: RLCallBack | None = None,
+        self, issue_id: str | None = None, series_id: str | None = None, issue_number: str = ""
     ) -> GenericMetadata:
         comic_data = GenericMetadata()
         if issue_id:
-            comic_data = self._fetch_issue_data_by_issue_id(issue_id, on_rate_limit=on_rate_limit)
+            comic_data = self._fetch_issue_data_by_issue_id(issue_id)
         elif issue_number and series_id:
-            comic_data = self._fetch_issue_data(int(series_id), issue_number, on_rate_limit=on_rate_limit)
+            comic_data = self._fetch_issue_data(int(series_id), issue_number)
 
         return comic_data
 
-    def fetch_issues_in_series(
-        self,
-        series_id: str,
-        on_rate_limit: RLCallBack | None = None,
-    ) -> list[GenericMetadata]:
+    def fetch_issues_in_series(self, series_id: str) -> list[GenericMetadata]:
         # before we search online, look in our cache, since we might already have this info
         cvc = ComicCacher(self.cache_folder, self.version)
         cached_series_issues_result = cvc.get_series_issues_info(series_id, self.id)
 
-        series_data: MangaDexSeries = self._fetch_series(series_id, on_rate_limit=on_rate_limit)
+        series_data: MangaDexSeries = self._fetch_series(series_id)
 
         # A better way to check validity of cache number? Even with dedupe it is possible there is a n.5 chapter
         if len(cached_series_issues_result) > 0:
@@ -439,7 +424,7 @@ class MangaDexTalker(ComicTalker):
         }
 
         mdex_response: MangaDexResponse[list[MangaDexChapter]] = self._get_content(
-            urljoin(self.api_url, f"manga/{series_id}/feed/"), params, on_rate_limit=on_rate_limit
+            urljoin(self.api_url, f"manga/{series_id}/feed/"), params
         )
 
         current_result_count = len(mdex_response["data"])
@@ -451,9 +436,7 @@ class MangaDexTalker(ComicTalker):
         while current_result_count < total_result_count:
             offset += 100
             params["offset"] = offset
-            mdex_response = self._get_content(
-                urljoin(self.api_url, f"manga/{series_id}/feed/"), params, on_rate_limit=on_rate_limit
-            )
+            mdex_response = self._get_content(urljoin(self.api_url, f"manga/{series_id}/feed/"), params)
 
             series_issues_result.extend(mdex_response["data"])
             current_result_count += len(mdex_response["data"])
@@ -463,7 +446,7 @@ class MangaDexTalker(ComicTalker):
 
         # Inject volume covers if required
         if self.use_volume_cover_matching or self.use_volume_cover_window:
-            series_issues_result = self._volume_covers(series_id, series_issues_result, on_rate_limit=on_rate_limit)
+            series_issues_result = self._volume_covers(series_id, series_issues_result)
 
         cvc.add_issues_info(
             self.id,
@@ -481,11 +464,7 @@ class MangaDexTalker(ComicTalker):
         return formatted_series_issues_result
 
     def fetch_issues_by_series_issue_num_and_year(
-        self,
-        series_id_list: list[str],
-        issue_number: str,
-        year: str | int | None,
-        on_rate_limit: RLCallBack | None = None,
+        self, series_id_list: list[str], issue_number: str, year: str | int | None
     ) -> list[GenericMetadata]:
         # year appears unreliable with publishAt so will ignore it (related to scanlation pub date?)
         issues: list[GenericMetadata] = []
@@ -508,9 +487,9 @@ class MangaDexTalker(ComicTalker):
             }
 
             mdex_response: MangaDexResponse[list[MangaDexChapter]] = self._get_content(
-                urljoin(self.api_url, "chapter"), params, on_rate_limit=on_rate_limit
+                urljoin(self.api_url, "chapter"), params
             )
-            series = self._fetch_series(series_id, on_rate_limit=on_rate_limit)
+            series = self._fetch_series(series_id)
 
             current_result_count = len(mdex_response["data"])
             total_result_count = mdex_response["total"]
@@ -524,7 +503,7 @@ class MangaDexTalker(ComicTalker):
                 offset += 100
 
                 params["offset"] = offset
-                mdex_response = self._get_content(urljoin(self.api_url, "chapter"), params, on_rate_limit=on_rate_limit)
+                mdex_response = self._get_content(urljoin(self.api_url, "chapter"), params)
 
                 current_result_count += len(mdex_response["data"])
                 issues_result.extend(mdex_response["data"])
@@ -533,30 +512,21 @@ class MangaDexTalker(ComicTalker):
 
             # Inject volume covers if required
             if self.use_volume_cover_matching or self.use_volume_cover_window:
-                issues_result = self._volume_covers(series_id, issues_result, on_rate_limit=on_rate_limit)
+                issues_result = self._volume_covers(series_id, issues_result)
 
             for issue in issues_result:
                 issues.append(self._map_comic_issue_to_metadata(issue, series))
 
         return issues
 
-    def _get_content(
-        self,
-        url: str,
-        params: dict[str, Any],
-        on_rate_limit: RLCallBack | None = None,
-    ) -> MangaDexResponse:
-        with limiter.ratelimit(
-            "mangadex",
-            delay=True,
-            on_rate_limit=on_rate_limit,
-        ):
-            mdex_response: MangaDexResponse = self._get_url_content(url, params)
-            if mdex_response.get("result") == "error":
-                logger.debug(f"{self.name} query failed with error: {mdex_response['errors']}")
-                raise TalkerNetworkError(self.name, 0, f"{mdex_response['errors']}")
+    @limiter.ratelimit("default", delay=True)
+    def _get_content(self, url: str, params: dict[str, Any]) -> MangaDexResponse:
+        mdex_response: MangaDexResponse = self._get_url_content(url, params)
+        if mdex_response.get("result") == "error":
+            logger.debug(f"{self.name} query failed with error: {mdex_response['errors']}")
+            raise TalkerNetworkError(self.name, 0, f"{mdex_response['errors']}")
 
-            return mdex_response
+        return mdex_response
 
     def _get_url_content(self, url: str, params: dict[str, Any]) -> Any:
         for tries in range(3):
@@ -695,14 +665,10 @@ class MangaDexTalker(ComicTalker):
             )
         ]
 
-    def fetch_series(
-        self,
-        series_id: str,
-        on_rate_limit: RLCallBack | None = None,
-    ) -> ComicSeries:
-        return self._format_search_results([self._fetch_series(series_id, on_rate_limit=on_rate_limit)])[0]
+    def fetch_series(self, series_id: str) -> ComicSeries:
+        return self._format_search_results([self._fetch_series(series_id)])[0]
 
-    def _fetch_series(self, series_id: str, on_rate_limit: RLCallBack | None = None) -> MangaDexSeries:
+    def _fetch_series(self, series_id: str) -> MangaDexSeries:
         # Search returns the full series information, this is a just in case
         cvc = ComicCacher(self.cache_folder, self.version)
         cached_series_result = cvc.get_series_info(series_id, self.id)
@@ -712,9 +678,7 @@ class MangaDexTalker(ComicTalker):
         # Include information for credits for use when tagging an issue
         params = {"includes[]": ["cover_art", "author", "artist", "tag", "creator"]}
         series_url = urljoin(self.api_url, f"manga/{series_id}")
-        mdex_response: MangaDexResponse[MangaDexSeries] = self._get_content(
-            series_url, params, on_rate_limit=on_rate_limit
-        )
+        mdex_response: MangaDexResponse[MangaDexSeries] = self._get_content(series_url, params)
 
         if mdex_response:
             cvc.add_series_info(
@@ -725,23 +689,19 @@ class MangaDexTalker(ComicTalker):
 
         return mdex_response["data"]
 
-    def _fetch_issue_data(
-        self, series_id: int, issue_number: str, on_rate_limit: RLCallBack | None = None
-    ) -> GenericMetadata:
+    def _fetch_issue_data(self, series_id: int, issue_number: str) -> GenericMetadata:
         # Should be in cache but will cover if not
         # issue number presumed to be chapter number
         params = {"manga": series_id, "chapter": issue_number}
 
         issue_url = urljoin(self.api_url, "chapter")
-        mdex_response: MangaDexResponse[MangaDexChapter] = self._get_content(
-            issue_url, params, on_rate_limit=on_rate_limit
-        )
+        mdex_response: MangaDexResponse[MangaDexChapter] = self._get_content(issue_url, params)
 
         if mdex_response["data"]["id"]:
-            return self._fetch_issue_data_by_issue_id(mdex_response["data"]["id"], on_rate_limit=on_rate_limit)
+            return self._fetch_issue_data_by_issue_id(mdex_response["data"]["id"])
         return GenericMetadata()
 
-    def _fetch_issue_data_by_issue_id(self, issue_id: str, on_rate_limit: RLCallBack | None = None) -> GenericMetadata:
+    def _fetch_issue_data_by_issue_id(self, issue_id: str) -> GenericMetadata:
         # All data should be cached but will cover anyway
         # issue number presumed to be chapter number
         series_id = ""
@@ -751,17 +711,14 @@ class MangaDexTalker(ComicTalker):
 
         if cached_issues_result and cached_issues_result[1]:
             return self._map_comic_issue_to_metadata(
-                json.loads(cached_issues_result[0].data),
-                self._fetch_series(cached_issues_result[0].series_id, on_rate_limit=on_rate_limit),
+                json.loads(cached_issues_result[0].data), self._fetch_series(cached_issues_result[0].series_id)
             )
 
         # scanlation group wanted to try and glean publisher if "official" is True
         params = {"includes[]": ["scanlation_group"]}
 
         issue_url = urljoin(self.api_url, f"chapter/{issue_id}")
-        mdex_response: MangaDexResponse[MangaDexChapter] = self._get_content(
-            issue_url, params, on_rate_limit=on_rate_limit
-        )
+        mdex_response: MangaDexResponse[MangaDexChapter] = self._get_content(issue_url, params)
 
         # Find series_id
         for rel in mdex_response["data"]["relationships"]:
@@ -769,7 +726,7 @@ class MangaDexTalker(ComicTalker):
                 series_id = rel["id"]
 
         issue_result = mdex_response["data"]
-        series_result: MangaDexSeries = self._fetch_series(series_id, on_rate_limit=on_rate_limit)
+        series_result: MangaDexSeries = self._fetch_series(series_id)
 
         cvc.add_issues_info(
             self.id,
@@ -785,9 +742,7 @@ class MangaDexTalker(ComicTalker):
 
         return self._map_comic_issue_to_metadata(issue_result, series_result)
 
-    def _volume_covers(
-        self, series_id: str, issues: list[MangaDexChapter], on_rate_limit: RLCallBack | None = None
-    ) -> list[MangaDexChapter]:
+    def _volume_covers(self, series_id: str, issues: list[MangaDexChapter]) -> list[MangaDexChapter]:
         # As chapters do not have covers, fetch the volume cover the chapter is contained within
         cover_url = urljoin(self.api_url, "cover")
         offset = 0
@@ -797,9 +752,7 @@ class MangaDexTalker(ComicTalker):
             "offset": offset,
         }
 
-        covers_for_series: MangaDexResponse[list[MangaDexCover]] = self._get_content(
-            cover_url, params, on_rate_limit=on_rate_limit
-        )
+        covers_for_series: MangaDexResponse[list[MangaDexCover]] = self._get_content(cover_url, params)
 
         current_result_count = len(covers_for_series["data"])
         total_result_count = covers_for_series["total"]
@@ -808,7 +761,7 @@ class MangaDexTalker(ComicTalker):
         while current_result_count < total_result_count:
             offset += 100
             params["offset"] = offset
-            mdex_response = self._get_content(cover_url, params, on_rate_limit=on_rate_limit)
+            mdex_response = self._get_content(cover_url, params)
 
             covers_for_series["data"].extend(mdex_response["data"])
             current_result_count += len(mdex_response["data"])

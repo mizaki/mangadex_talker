@@ -8,5 +8,5 @@ isort>=5.10
 pytest==7.*
 setuptools>=42
 setuptools_scm[toml]>=3.4
-tox
 wheel
+tox
