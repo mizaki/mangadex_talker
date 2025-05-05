@@ -23,20 +23,20 @@ import logging
 import pathlib
 import time
 from typing import Any, Callable, Generic, TypeVar
-from typing_extensions import TypedDict
 from urllib.parse import urljoin
 
 import comictalker.talker_utils as talker_utils
 import requests
 import settngs
 from comicapi import utils
-from comicapi.genericmetadata import ComicSeries, GenericMetadata, MetadataOrigin
+from comicapi.genericmetadata import ComicSeries, GenericMetadata, ImageHash, MetadataOrigin
 from comicapi.issuestring import IssueString
 from comictalker.comiccacher import ComicCacher
 from comictalker.comiccacher import Issue as CCIssue
 from comictalker.comiccacher import Series as CCSeries
 from comictalker.comictalker import ComicTalker, TalkerDataError, TalkerNetworkError
 from pyrate_limiter import Duration, Limiter, RequestRate
+from typing_extensions import TypedDict
 
 logger = logging.getLogger(f"comictalker.{__name__}")
 
@@ -181,7 +181,7 @@ limiter = Limiter(RequestRate(5, Duration.SECOND))
 class MangaDexTalker(ComicTalker):
     name: str = "MangaDex"
     id: str = "mangadex"
-    comictagger_min_ver: str = "1.6.0a13"
+    comictagger_min_ver: str = "1.6.0b5"
     website: str = "https://mangadex.org"
     logo_url: str = "https://mangadex.org/img/brand/mangadex-logo.svg"
     attribution: str = f"Metadata provided by <a href='{website}'>{name}</a>"
@@ -791,7 +791,7 @@ class MangaDexTalker(ComicTalker):
 
         md.manga = "Yes"
 
-        md.cover_image = issue["attributes"].get("image")
+        md._cover_image = ImageHash(URL=issue["attributes"].get("image", ""), Hash=0, Kind="")
 
         # Check if series is ongoing to legitimise issue count OR use option setting
         # Having a lastChapter indicated completed or cancelled
